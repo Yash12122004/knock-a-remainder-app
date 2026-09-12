@@ -35,7 +35,8 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
     val c = LocalKnock.current
     val ctx = LocalContext.current
     val settings by vm.settings.collectAsState()
-    var typing by remember { mutableStateOf(!SpeechRecognizer.isRecognitionAvailable(ctx)) }
+    val inAppAvailable = remember { SpeechRecognizer.isRecognitionAvailable(ctx) }
+    var typing by remember { mutableStateOf(false) }
     var listening by remember { mutableStateOf(false) }
     var partial by remember { mutableStateOf("") }
     var finalText by remember { mutableStateOf("") }
@@ -43,12 +44,26 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
     var rms by remember { mutableFloatStateOf(0f) }
     var typed by remember { mutableStateOf("") }
     var micGranted by remember { mutableStateOf(Perms.mic(ctx)) }
+    var preferOffline by remember { mutableStateOf(true) }
 
-    val recognizer = remember { if (SpeechRecognizer.isRecognitionAvailable(ctx)) SpeechRecognizer.createSpeechRecognizer(ctx) else null }
+    val recognizer = remember { if (inAppAvailable) SpeechRecognizer.createSpeechRecognizer(ctx) else null }
     DisposableEffect(Unit) { onDispose { recognizer?.destroy() } }
 
+    val dialogLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val text = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!text.isNullOrBlank()) finalText = text else typing = true
+    }
+    fun startSystemDialog(): Boolean {
+        val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, settings.voiceLang)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Say all your tasks in one go")
+        }
+        return try { dialogLauncher.launch(i); true } catch (e: Exception) { false }
+    }
+
     fun start() {
-        val r = recognizer ?: run { typing = true; return }
+        val r = recognizer ?: run { if (!startSystemDialog()) typing = true; return }
         error = null; partial = ""; finalText = ""
         r.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) { listening = true }
@@ -58,11 +73,19 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
             override fun onEndOfSpeech() { listening = false }
             override fun onError(code: Int) {
                 listening = false
-                error = when (code) {
-                    SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Didn't catch that — try again or type."
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission needed."
-                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Speech needs a network on this device — or type instead."
-                    else -> "Speech error ($code) — you can type instead."
+                when (code) {
+                    SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                        error = "Didn't catch that — tap the mic to try again, or type."
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> error = "Microphone permission needed."
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY, SpeechRecognizer.ERROR_CLIENT -> {
+                        error = "Speech engine was busy — tap the mic to try again."
+                    }
+                    else -> {
+                        // Offline model missing, language unsupported, network, server, audio… → retry online once,
+                        // then hand over to the system speech dialog, then fall back to typing.
+                        if (preferOffline) { preferOffline = false; start() }
+                        else if (!startSystemDialog()) { error = "Speech isn't available on this phone (error $code) — type instead."; typing = true }
+                    }
                 }
             }
             override fun onResults(results: Bundle?) {
@@ -79,7 +102,7 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, settings.voiceLang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
         }
@@ -115,7 +138,7 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (recognizer != null) OutlinedButton(onClick = { typing = false; if (micGranted) start() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) }) {
+                OutlinedButton(onClick = { typing = false; if (micGranted) start() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) }) {
                     Icon(Icons.Filled.Mic, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Speak instead")
                 }
                 Button(
