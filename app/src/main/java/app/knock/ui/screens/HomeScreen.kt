@@ -88,7 +88,7 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().imePadding().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = quick, onValueChange = { quick = it }, modifier = Modifier.weight(1f), singleLine = true,
                     placeholder = { Text("Add or say tasks…") }, colors = knockFieldColors(), shape = RoundedCornerShape(24.dp),

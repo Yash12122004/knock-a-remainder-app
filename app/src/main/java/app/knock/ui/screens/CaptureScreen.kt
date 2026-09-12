@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,9 +25,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import app.knock.parse.TaskParser
 import app.knock.ui.MainViewModel
 import app.knock.ui.theme.LocalKnock
 import kotlinx.coroutines.delay
@@ -121,7 +126,7 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
         if (finalText.isNotBlank()) { vm.parse(finalText); onParsed() }
     }
 
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
+    Column(Modifier.fillMaxSize().imePadding().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = c.text) }
             Text(if (typing) "Type your tasks" else if (listening) "Listening…" else "Tap the mic to start",
@@ -129,13 +134,31 @@ fun CaptureScreen(vm: MainViewModel, onParsed: () -> Unit, onBack: () -> Unit) {
         }
 
         if (typing) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
+            val focus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { focus.requestFocus() }
             OutlinedTextField(
-                value = typed, onValueChange = { typed = it }, modifier = Modifier.fillMaxWidth().weight(1f),
-                placeholder = { Text("call the bank at 10:30, submit assignment by 2, gym at 6…") },
+                value = typed, onValueChange = { typed = it },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 220.dp).focusRequester(focus),
+                placeholder = { Text("call the bank at 10:30, submit assignment by 2, gym at 6…", color = c.secondary) },
                 colors = knockFieldColors(), shape = RoundedCornerShape(16.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = c.text),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
             )
+            val chunks = remember(typed) { TaskParser.split(typed) }
+            if (chunks.isNotEmpty()) {
+                Text("Will become ${chunks.size} task${if (chunks.size == 1) "" else "s"}:", color = c.secondary,
+                    style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    chunks.forEach { ch ->
+                        Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(6.dp).background(c.accent, CircleShape))
+                            Spacer(Modifier.width(8.dp))
+                            Text(ch, color = c.text, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            } else Spacer(Modifier.weight(1f))
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = { typing = false; if (micGranted) start() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) }) {

@@ -54,7 +54,7 @@ fun TaskDetailScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
     val dirty = draft != task
     val today = LocalDate.now()
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = c.text) }
             Text("Task", style = MaterialTheme.typography.titleLarge, color = c.text, modifier = Modifier.weight(1f))

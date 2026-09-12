@@ -29,7 +29,7 @@ fun ConfirmScreen(vm: MainViewModel, onReRecord: () -> Unit, onAdded: () -> Unit
     val parsed = vm.parsed
     val today = LocalDate.now()
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = c.text) }
             Column {
