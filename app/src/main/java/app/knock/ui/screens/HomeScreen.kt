@@ -1,0 +1,241 @@
+package app.knock.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.knock.data.Task
+import app.knock.data.TaskState
+import app.knock.data.TaskStatus
+import app.knock.data.friendly
+import app.knock.data.hhmm
+import app.knock.ui.MainViewModel
+import app.knock.ui.theme.LocalKnock
+import app.knock.ui.theme.knockCard
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+enum class Range(val label: String, val days: Long) { TODAY("Today", 0), NEXT3("Next 3 days", 3), WEEK("This week", 7) }
+
+private sealed class RailItem {
+    data class TaskRow(val task: Task) : RailItem()
+    data object NowLine : RailItem()
+}
+
+@Composable
+fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, onOpenTask: (Long) -> Unit, onOpenSettings: () -> Unit) {
+    val c = LocalKnock.current
+    val ctx = LocalContext.current
+    val tasks by vm.tasks.collectAsState()
+    val settings by vm.settings.collectAsState()
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
+    LaunchedEffect(Unit) { while (true) { delay(30_000); now = LocalDateTime.now() } }
+    val today = now.toLocalDate()
+    var range by remember { mutableStateOf(Range.TODAY) }
+    var quick by remember { mutableStateOf("") }
+    val snack = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val perms = rememberPermState()
+
+    val todayTasks = tasks.filter { it.day == today }
+    val overdueEarlier = tasks.filter { it.day.isBefore(today) && it.state == TaskState.PENDING }
+    val doneCount = todayTasks.count { it.state == TaskState.DONE }
+    val total = todayTasks.count { it.state != TaskState.SKIPPED }
+    val future = if (range == Range.TODAY) emptyList() else tasks.filter { it.day.isAfter(today) && !it.day.isAfter(today.plusDays(range.days)) }
+
+    val rows = remember(todayTasks, overdueEarlier, now) {
+        val list = mutableListOf<RailItem>()
+        overdueEarlier.forEach { list += RailItem.TaskRow(it) }
+        val sorted = todayTasks.sortedWith(compareBy({ it.anytime }, { it.dueAt }))
+        var inserted = false
+        for (t in sorted) {
+            if (!inserted && (t.anytime || t.dueAt!!.isAfter(now))) { list += RailItem.NowLine; inserted = true }
+            list += RailItem.TaskRow(t)
+        }
+        if (!inserted) list += RailItem.NowLine
+        list
+    }
+
+    fun complete(task: Task) {
+        vm.done(task.id)
+        scope.launch {
+            val r = snack.showSnackbar("Done: ${task.title}", actionLabel = "Undo", duration = SnackbarDuration.Short)
+            if (r == SnackbarResult.ActionPerformed) vm.undo(task.id)
+        }
+    }
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        snackbarHost = { SnackbarHost(snack) },
+        bottomBar = {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = quick, onValueChange = { quick = it }, modifier = Modifier.weight(1f), singleLine = true,
+                    placeholder = { Text("Add or say tasks…") }, colors = knockFieldColors(), shape = RoundedCornerShape(24.dp),
+                    trailingIcon = {
+                        if (quick.isNotBlank()) TextButton(onClick = {
+                            val text = quick; quick = ""
+                            vm.quickAdd(text) { if (settings.confirmBeforeAdd) onConfirm() }
+                        }) { Text("Add", color = c.accent) }
+                    }
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(Modifier.size(64.dp).background(c.accent.copy(alpha = 0.22f), CircleShape), contentAlignment = Alignment.Center) {
+                    FloatingActionButton(onClick = onCapture, containerColor = c.accent, contentColor = c.accentOn, shape = CircleShape, modifier = Modifier.size(52.dp)) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Speak tasks")
+                    }
+                }
+            }
+        }
+    ) { pad ->
+        Box(Modifier.fillMaxSize().padding(pad)) {
+            Glow(Modifier.align(Alignment.TopCenter).offset(y = (-120).dp), size = 360)
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp)) {
+                item {
+                    Text(today.format(DateTimeFormatter.ofPattern("EEEE, d MMM")), color = c.secondary, style = MaterialTheme.typography.labelMedium)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("Today", style = MaterialTheme.typography.displayLarge, color = c.text)
+                        Spacer(Modifier.weight(1f))
+                        Column(horizontalAlignment = Alignment.End) {
+                            MonoText("$doneCount/$total done", size = 14)
+                            Text("\uD83D\uDD25 ${vm.streak}-day streak", color = c.secondary, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        progress = { if (total == 0) 0f else doneCount.toFloat() / total },
+                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                        color = c.accent, trackColor = c.border
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Range.entries.forEach { r -> Pill(r.label, color = c.accent, filled = range == r) { range = r } }
+                    }
+
+                    if (settings.forceStopWarning) Banner(
+                        "Reminders may have been blocked", "Knock was stopped and missed an alarm. Check battery settings.",
+                        primary = "Battery settings" to { Perms.openBatterySettings(ctx); vm.dismissForceStopWarning() },
+                        secondary = "Dismiss" to { vm.dismissForceStopWarning() }
+                    )
+                    if (settings.zoneChangePending) Banner(
+                        "Time zone changed", "Keep task times as local clock times, or shift them to the same absolute moment?",
+                        primary = "Keep local" to { vm.applyZoneChange(true) },
+                        secondary = "Shift" to { vm.applyZoneChange(false) }
+                    )
+                    if (!perms.value.notif || !perms.value.exact) Banner(
+                        "Permission problem", "Notifications or exact alarms are off — reminders won't fire.",
+                        primary = "Fix" to onOpenSettings, secondary = null
+                    )
+                    if (overdueEarlier.isNotEmpty()) Banner(
+                        "${overdueEarlier.size} overdue from earlier days", "Still pending. Move them to today or open each to reschedule.",
+                        primary = "Move all to today" to { vm.moveAllToToday() }, secondary = null
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                if (rows.size == 1) item {
+                    Text("Nothing on today's rail yet. Say or type your tasks below.", color = c.secondary, modifier = Modifier.padding(vertical = 40.dp))
+                }
+                items(rows, key = { r -> if (r is RailItem.TaskRow) "t${r.task.id}" else "now" }) { r ->
+                    when (r) {
+                        is RailItem.NowLine -> NowLineRow(now)
+                        is RailItem.TaskRow -> TimelineRow(r.task, now, onCircle = {
+                            if (r.task.state == TaskState.DONE) vm.undo(r.task.id) else if (r.task.state == TaskState.PENDING) complete(r.task)
+                        }, onOpen = { onOpenTask(r.task.id) })
+                    }
+                }
+
+                if (future.isNotEmpty()) {
+                    val grouped = future.groupBy { it.day }.toSortedMap()
+                    grouped.forEach { (day, list) ->
+                        item { SectionTitle(day.friendly(today).uppercase()) }
+                        items(list, key = { "f${it.id}" }) { t ->
+                            TimelineRow(t, now, onCircle = { if (t.state == TaskState.PENDING) complete(t) else if (t.state == TaskState.DONE) vm.undo(t.id) }, onOpen = { onOpenTask(t.id) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun Banner(title: String, body: String, primary: Pair<String, () -> Unit>, secondary: Pair<String, () -> Unit>?) {
+    val c = LocalKnock.current
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp).knockCard().padding(14.dp)) {
+        Text(title, color = c.warn, style = MaterialTheme.typography.titleMedium)
+        Text(body, color = c.secondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+        Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = primary.second, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(primary.first, color = c.accent) }
+            if (secondary != null) TextButton(onClick = secondary.second, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(secondary.first, color = c.secondary) }
+        }
+    }
+}
+
+@Composable
+private fun NowLineRow(now: LocalDateTime) {
+    val c = LocalKnock.current
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        MonoText(now.toLocalTime().hhmm(), color = c.accent, size = 12, modifier = Modifier.width(56.dp))
+        Box(Modifier.size(8.dp).background(c.accent, CircleShape))
+        Box(Modifier.weight(1f).height(2.dp).background(c.accent))
+        Spacer(Modifier.width(8.dp))
+        Text("NOW", color = c.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun TimelineRow(task: Task, now: LocalDateTime, onCircle: () -> Unit, onOpen: () -> Unit) {
+    val c = LocalKnock.current
+    val status = task.status(now)
+    val titleColor = when (status) {
+        TaskStatus.DONE -> c.done; TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.text
+        TaskStatus.SKIPPED -> c.secondary; TaskStatus.UPCOMING -> c.secondary
+    }
+    val timeColor = when (status) {
+        TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.accent; TaskStatus.DONE -> c.done; else -> c.secondary
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.width(56.dp)) {
+            MonoText(if (task.anytime) "any" else task.dueAt!!.toLocalTime().hhmm(), color = timeColor, size = 13)
+            if (task.day != now.toLocalDate()) Text(task.day.friendly(now.toLocalDate()), color = c.overdue, fontSize = 10.sp)
+        }
+        StatusCircle(status, onCircle)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f).knockCard(14).clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                task.title, color = titleColor, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                textDecoration = if (status == TaskStatus.DONE || status == TaskStatus.SKIPPED) TextDecoration.LineThrough else null
+            )
+            Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (task.tag.isNotBlank()) Pill(task.tag)
+                if (task.priority == app.knock.data.Priority.HIGH) Pill("High", color = c.overdue)
+                if (task.priority == app.knock.data.Priority.LOW) Pill("Low")
+                if (task.hasLocation) Pill("near ${task.locLabel}", color = c.done)
+                if (task.repeatRule != null) Pill("repeats")
+                if (status == TaskStatus.OVERDUE) Text("${task.remindCount}× reminded", color = c.overdue, fontSize = 11.sp)
+                if (status == TaskStatus.SKIPPED) Text("skipped · ${task.skipReason ?: ""}", color = c.secondary, fontSize = 11.sp)
+            }
+        }
+    }
+}
