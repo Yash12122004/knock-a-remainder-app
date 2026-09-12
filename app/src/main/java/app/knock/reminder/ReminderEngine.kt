@@ -19,6 +19,7 @@ import app.knock.data.EventType
 import app.knock.data.Priority
 import app.knock.data.ReminderEvent
 import app.knock.data.Task
+import app.knock.data.TaskState
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 import com.google.android.gms.location.GeofencingRequest
@@ -242,7 +243,7 @@ class GeofenceReceiver : BroadcastReceiver() {
             try {
                 ids.forEach { id ->
                     val t = app.repo.dao.get(id) ?: return@forEach
-                    if (t.state != app.knock.data.TaskState.PENDING) return@forEach
+                    if (t.state != TaskState.PENDING) return@forEach
                     app.repo.dao.insertEvent(ReminderEvent(taskId = id, type = EventType.NEARBY, note = t.locLabel ?: ""))
                     NotificationHelper.showNearby(context, t)
                 }

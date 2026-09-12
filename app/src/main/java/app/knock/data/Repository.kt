@@ -198,7 +198,7 @@ class Repository(private val context: Context, val dao: TaskDao, val settings: S
     // ---------- progress ----------
 
     /** Days where every due task was done. One grace day per rolling week. Days without tasks are neutral. */
-    suspend fun streak(all: List<Task> = dao.all()): Int {
+    suspend fun streak(all: List<Task>): Int {
         val today = LocalDate.now()
         val byDay = all.filter { it.state != TaskState.SKIPPED }.groupBy { it.day }
         var d = today
