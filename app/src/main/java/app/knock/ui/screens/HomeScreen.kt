@@ -251,8 +251,10 @@ fun TimelineRow(
     val c = LocalKnock.current
     val status = task.status(now)
     // Finished work recedes: without hue, loudness is emphasis. The filled check circle still marks it done.
+    // Overdue is marked by the red time and circle down the left edge; the title stays plain text,
+    // otherwise several overdue rows turn into a wall of red.
     val titleColor = when (status) {
-        TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.text
+        TaskStatus.OVERDUE, TaskStatus.DUE -> c.text
         TaskStatus.DONE, TaskStatus.SKIPPED, TaskStatus.UPCOMING -> c.secondary
     }
     val timeColor = when (status) {
@@ -283,7 +285,7 @@ fun TimelineRow(
                 if (task.priority == app.knock.data.Priority.LOW) Pill("Low")
                 if (task.hasLocation) Pill("near ${task.locLabel}")
                 if (task.repeatRule != null) Pill("repeats")
-                if (status == TaskStatus.OVERDUE) Text("${task.remindCount}× reminded", color = c.overdue, fontSize = 11.sp)
+                if (status == TaskStatus.OVERDUE && task.remindCount > 0) Text("${task.remindCount}× reminded", color = c.secondary, fontSize = 11.sp)
                 if (status == TaskStatus.SKIPPED) Text("skipped · ${task.skipReason ?: ""}", color = c.secondary, fontSize = 11.sp)
             }
         }
