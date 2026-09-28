@@ -64,7 +64,7 @@ fun ConfirmScreen(vm: MainViewModel, onReRecord: () -> Unit, onAdded: () -> Unit
                     }
                     if (p.locLabel != null) {
                         Spacer(Modifier.height(6.dp))
-                        Pill("near ${p.locLabel}", color = c.done)
+                        Pill("near ${p.locLabel}")
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

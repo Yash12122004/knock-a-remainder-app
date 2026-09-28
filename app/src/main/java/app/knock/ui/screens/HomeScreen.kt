@@ -184,7 +184,7 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
                         item { SectionTitle(day.friendly(today).uppercase()) }
                         items(list, key = { "f${it.id}" }) { t ->
                             TimelineRow(t, now, onCircle = { if (t.state == TaskState.PENDING) complete(t) else if (t.state == TaskState.DONE) vm.undo(t.id) },
-                                onOpen = { onOpenTask(t.id) }, onLongPress = longPressFor(t))
+                                onOpen = { onOpenTask(t.id) }, onLongPress = longPressFor(t), showDay = false)
                         }
                     }
                 }
@@ -239,7 +239,10 @@ fun TimelineRow(
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(56.dp)) {
             MonoText(if (task.anytime) "any" else task.dueAt!!.toLocalTime().hhmm(), color = timeColor, size = 13)
-            if (showDay && task.day != now.toLocalDate()) Text(task.day.friendly(now.toLocalDate()), color = c.overdue, fontSize = 10.sp)
+            if (showDay && task.day != now.toLocalDate()) {
+                // Red means overdue, so only a past day gets it.
+                Text(task.day.friendly(now.toLocalDate()), color = if (task.day.isBefore(now.toLocalDate())) c.overdue else c.secondary, fontSize = 10.sp)
+            }
         }
         StatusCircle(status, onCircle)
         Spacer(Modifier.width(12.dp))
@@ -256,7 +259,7 @@ fun TimelineRow(
                 if (task.tag.isNotBlank()) Pill(task.tag)
                 if (task.priority == app.knock.data.Priority.HIGH) Pill("High", color = c.overdue)
                 if (task.priority == app.knock.data.Priority.LOW) Pill("Low")
-                if (task.hasLocation) Pill("near ${task.locLabel}", color = c.done)
+                if (task.hasLocation) Pill("near ${task.locLabel}")
                 if (task.repeatRule != null) Pill("repeats")
                 if (status == TaskStatus.OVERDUE) Text("${task.remindCount}× reminded", color = c.overdue, fontSize = 11.sp)
                 if (status == TaskStatus.SKIPPED) Text("skipped · ${task.skipReason ?: ""}", color = c.secondary, fontSize = 11.sp)

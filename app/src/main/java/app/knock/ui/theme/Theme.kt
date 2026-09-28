@@ -34,22 +34,25 @@ data class KnockColors(
     val isDark: Boolean
 )
 
-// Black and white, with one red kept for overdue and destructive actions — an overdue task
-// must not look like one that is merely due. Done and warn are full contrast; the Done
-// button therefore stays the strongest control, and warnings keep their icon.
+// Black and white for everything structural; colour only where it carries meaning:
+// red = overdue / destructive, green = done / OK, amber = caution. Nothing else is coloured.
+//
+// Tuned for comfortable long reading. Dark mode avoids pure white on pure black (above ~15:1,
+// light text blooms and smears, worst with astigmatism) and uses softened status colours,
+// since saturated hues vibrate on black. Every text/background pair used is at least 4.5:1.
 
 val DarkKnock = KnockColors(
-    bg = Color(0xFF0A0A0A),
-    card = Color(0x0FFFFFFF),
-    border = Color(0x1FFFFFFF),
-    text = Color(0xFFF5F5F5),
-    secondary = Color(0xFFA3A3A3),
-    accent = Color(0xFFFFFFFF),
-    accentOn = Color(0xFF0A0A0A),
-    overdue = Color(0xFFFF6B6B),
-    done = Color(0xFFF5F5F5),
-    warn = Color(0xFFF5F5F5),
-    sheet = Color(0xFF171717),
+    bg = Color(0xFF121212),
+    card = Color(0x0DFFFFFF),
+    border = Color(0x1AFFFFFF),
+    text = Color(0xFFE3E3E3),
+    secondary = Color(0xFFA8A8A8),
+    accent = Color(0xFFE3E3E3),
+    accentOn = Color(0xFF121212),
+    overdue = Color(0xFFF28B82),
+    done = Color(0xFF81C995),
+    warn = Color(0xFFFDD663),
+    sheet = Color(0xFF1E1E1E),
     isDark = true
 )
 
@@ -57,13 +60,13 @@ val LightKnock = KnockColors(
     bg = Color(0xFFF5F5F5),
     card = Color(0xFFFFFFFF),
     border = Color(0x1A000000),
-    text = Color(0xFF0A0A0A),
+    text = Color(0xFF212121),
     secondary = Color(0xFF525252),
-    accent = Color(0xFF0A0A0A),
+    accent = Color(0xFF212121),
     accentOn = Color(0xFFFFFFFF),
-    overdue = Color(0xFFD32F2F),
-    done = Color(0xFF0A0A0A),
-    warn = Color(0xFF0A0A0A),
+    overdue = Color(0xFFB3261E),
+    done = Color(0xFF137333),
+    warn = Color(0xFF8F5300),
     sheet = Color(0xFFFFFFFF),
     isDark = false
 )
@@ -77,10 +80,10 @@ fun KnockTheme(dark: Boolean = true, content: @Composable () -> Unit) {
     val c = if (dark) DarkKnock else LightKnock
     val scheme = if (dark) darkColorScheme(
         primary = c.accent, onPrimary = c.accentOn, background = c.bg, onBackground = c.text,
-        surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFF1C1C1C), onSurfaceVariant = c.secondary,
-        error = c.overdue, outline = c.border, secondaryContainer = Color(0xFF262626), onSecondaryContainer = c.text,
-        surfaceContainer = c.sheet, surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF262626),
-        surfaceContainerLow = Color(0xFF121212), surfaceContainerLowest = c.bg
+        surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFF242424), onSurfaceVariant = c.secondary,
+        error = c.overdue, outline = c.border, secondaryContainer = Color(0xFF2A2A2A), onSecondaryContainer = c.text,
+        surfaceContainer = c.sheet, surfaceContainerHigh = Color(0xFF242424), surfaceContainerHighest = Color(0xFF2A2A2A),
+        surfaceContainerLow = Color(0xFF181818), surfaceContainerLowest = c.bg
     ) else lightColorScheme(
         primary = c.accent, onPrimary = c.accentOn, background = c.bg, onBackground = c.text,
         surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFFEBEBEB), onSurfaceVariant = c.secondary,

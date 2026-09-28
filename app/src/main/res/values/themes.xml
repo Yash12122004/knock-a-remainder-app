@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Knock" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#0a0a0a</item>
-        <item name="android:statusBarColor">#0a0a0a</item>
-        <item name="android:navigationBarColor">#0a0a0a</item>
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
         <item name="android:windowLightStatusBar">false</item>
         <!-- The system date and time pickers ignore the Compose theme and take their accent from here. -->
-        <item name="android:colorAccent">#ffffff</item>
+        <item name="android:colorAccent">#e3e3e3</item>
     </style>
 </resources>
