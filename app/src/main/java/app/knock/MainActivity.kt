@@ -2,6 +2,7 @@ package app.knock
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
@@ -38,18 +39,30 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        applySystemBars(dark = true)
         pendingRoute.value = intent?.getStringExtra(EXTRA_ROUTE)
         addOnNewIntentListener { i -> pendingRoute.value = i.getStringExtra(EXTRA_ROUTE) }
         setContent {
             val app = application as KnockApp
             val vm: MainViewModel = viewModel(factory = MainViewModel.Factory(app))
             val settings by vm.settings.collectAsStateWithLifecycle()
+            LaunchedEffect(settings.darkTheme) { applySystemBars(settings.darkTheme) }
             KnockTheme(dark = settings.darkTheme) {
                 KnockNav(vm, settings.onboardingDone, pendingRoute)
             }
         }
     }
+}
+
+/**
+ * Status and navigation bar icons follow Knock's own theme, not the phone's. The default
+ * (auto) style reads the phone's setting, so a light-mode phone drew dark icons over
+ * Knock's dark screens, and a dark-mode phone drew light icons over its light ones.
+ */
+private fun ComponentActivity.applySystemBars(dark: Boolean) {
+    val clear = android.graphics.Color.TRANSPARENT
+    val style = if (dark) SystemBarStyle.dark(clear) else SystemBarStyle.light(clear, clear)
+    enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
 }
 
 object Routes {
