@@ -67,6 +67,14 @@ data class Task(
 
     fun timeLabel(): String = if (anytime || dueAt == null) "any" else dueAt.toLocalTime().hhmm()
 
+    /** Same task on another day, keeping its time of day. A priority change drops any custom interval so the new priority's default applies. */
+    fun movedTo(newDay: LocalDate, newPriority: Priority = priority): Task = copy(
+        day = newDay,
+        dueAt = dueAt?.toLocalTime()?.let { newDay.atTime(it) },
+        priority = newPriority,
+        intervalMin = if (newPriority != priority) null else intervalMin
+    )
+
     fun nextOccurrenceDay(): LocalDate? {
         val rule = repeatRule ?: return null
         if (rule == "DAILY") return day.plusDays(1)

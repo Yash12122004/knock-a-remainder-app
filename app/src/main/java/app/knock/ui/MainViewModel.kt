@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.knock.KnockApp
+import app.knock.data.Priority
 import app.knock.data.Repository
 import app.knock.data.Settings
 import app.knock.data.SettingsStore
@@ -66,6 +67,7 @@ class MainViewModel(val repo: Repository, val settingsStore: SettingsStore) : Vi
     fun delete(id: Long) = viewModelScope.launch { repo.delete(id) }
     fun update(task: Task) = viewModelScope.launch { repo.update(task) }
     fun reschedule(id: Long, day: LocalDate, time: LocalTime?) = viewModelScope.launch { repo.rescheduleTo(id, day, time) }
+    fun move(id: Long, day: LocalDate, priority: Priority) = viewModelScope.launch { repo.move(id, day, priority) }
     fun loadDemo() = viewModelScope.launch { repo.loadDemo() }
     fun clearAll() = viewModelScope.launch { repo.clearAll() }
     fun moveAllToToday() = viewModelScope.launch { repo.moveAllToToday() }

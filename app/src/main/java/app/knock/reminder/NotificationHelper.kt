@@ -56,13 +56,16 @@ object NotificationHelper {
 
     private fun flags() = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
-    private fun reminderActivityIntent(ctx: Context, taskId: Long, openSkip: Boolean = false): PendingIntent {
+    private fun reminderActivityIntent(ctx: Context, taskId: Long, openSkip: Boolean = false, openMove: Boolean = false): PendingIntent {
         val i = Intent(ctx, ReminderActivity::class.java).apply {
             putExtra(ReminderActivity.EXTRA_TASK_ID, taskId)
             putExtra(ReminderActivity.EXTRA_OPEN_SKIP, openSkip)
+            putExtra(ReminderActivity.EXTRA_OPEN_MOVE, openMove)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        return PendingIntent.getActivity(ctx, (taskId * 10 + (if (openSkip) 1 else 0)).toInt(), i, flags())
+        // Extras don't distinguish PendingIntents, so each variant needs its own request code (0 plain, 1 skip, 6 move).
+        val salt = when { openSkip -> 1; openMove -> 6; else -> 0 }
+        return PendingIntent.getActivity(ctx, (taskId * 10 + salt).toInt(), i, flags())
     }
 
     private fun actionIntent(ctx: Context, action: String, taskId: Long, requestSalt: Int, extra: (Intent) -> Unit = {}): PendingIntent {
@@ -100,7 +103,8 @@ object NotificationHelper {
             .setFullScreenIntent(reminderActivityIntent(ctx, task.id), true)
             .addAction(0, "Done", actionIntent(ctx, ReminderReceiver.ACTION_DONE, task.id, 2))
             .addAction(0, "Snooze 10 min", actionIntent(ctx, ReminderReceiver.ACTION_SNOOZE, task.id, 3) { it.putExtra(ReminderReceiver.EXTRA_MINUTES, 10) })
-            .addAction(0, "Skip", reminderActivityIntent(ctx, task.id, openSkip = true))
+            // Android shows at most three actions. Skip stays one tap away on the reminder screen this opens.
+            .addAction(0, "Reschedule", reminderActivityIntent(ctx, task.id, openMove = true))
             .build()
         NotificationManagerCompat.from(ctx).notify(task.id.toInt(), n)
     }

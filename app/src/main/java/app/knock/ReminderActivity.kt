@@ -25,7 +25,9 @@ import app.knock.data.Task
 import app.knock.data.TaskState
 import app.knock.data.friendly
 import app.knock.data.hhmm
+import app.knock.data.Priority
 import app.knock.ui.screens.MonoText
+import app.knock.ui.screens.MoveSheet
 import app.knock.ui.screens.Pill
 import app.knock.ui.screens.SkipSheet
 import app.knock.ui.screens.pickTime
@@ -40,6 +42,7 @@ class ReminderActivity : ComponentActivity() {
     companion object {
         const val EXTRA_TASK_ID = "taskId"
         const val EXTRA_OPEN_SKIP = "openSkip"
+        const val EXTRA_OPEN_MOVE = "openMove"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +58,7 @@ class ReminderActivity : ComponentActivity() {
         val app = application as KnockApp
         val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1)
         val openSkip = intent.getBooleanExtra(EXTRA_OPEN_SKIP, false)
+        val openMove = intent.getBooleanExtra(EXTRA_OPEN_MOVE, false)
 
         setContent {
             val settings by app.settings.flow.collectAsStateWithLifecycle(initialValue = Settings())
@@ -68,11 +72,12 @@ class ReminderActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize().background(LocalKnock.current.bg))
                 } else {
                     ReminderContent(
-                        task = t, snoozesLeft = snoozesLeft, requireReason = settings.requireSkipReason, openSkip = openSkip,
+                        task = t, snoozesLeft = snoozesLeft, requireReason = settings.requireSkipReason, openSkip = openSkip, openMove = openMove,
                         interval = t.intervalMin ?: settings.intervalFor(t.priority),
                         onDone = { lifecycleScope.launch { app.repo.markDone(t.id); finish() } },
                         onSnooze = { until -> lifecycleScope.launch { if (app.repo.snooze(t.id, until)) finish() } },
                         onSkip = { reason, all -> lifecycleScope.launch { app.repo.skip(t.id, reason, all); finish() } },
+                        onMove = { day, priority -> lifecycleScope.launch { app.repo.move(t.id, day, priority); finish() } },
                         onOpen = {
                             startActivity(android.content.Intent(this@ReminderActivity, MainActivity::class.java).apply {
                                 putExtra(MainActivity.EXTRA_ROUTE, "task/${t.id}"); flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
@@ -87,12 +92,14 @@ class ReminderActivity : ComponentActivity() {
 
 @Composable
 private fun ReminderContent(
-    task: Task, snoozesLeft: Int, requireReason: Boolean, openSkip: Boolean, interval: Int,
-    onDone: () -> Unit, onSnooze: (LocalDateTime) -> Unit, onSkip: (String, Boolean) -> Unit, onOpen: () -> Unit
+    task: Task, snoozesLeft: Int, requireReason: Boolean, openSkip: Boolean, openMove: Boolean, interval: Int,
+    onDone: () -> Unit, onSnooze: (LocalDateTime) -> Unit, onSkip: (String, Boolean) -> Unit,
+    onMove: (LocalDate, Priority) -> Unit, onOpen: () -> Unit
 ) {
     val c = LocalKnock.current
     val ctx = LocalContext.current
     var showSkip by remember { mutableStateOf(openSkip) }
+    var showMove by remember { mutableStateOf(openMove) }
     val today = LocalDate.now()
     val due = task.effectiveDue()
 
@@ -138,13 +145,14 @@ private fun ReminderContent(
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onOpen, modifier = Modifier.weight(1f).height(48.dp)) { Text("Reschedule") }
+                OutlinedButton(onClick = { showMove = true }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Reschedule") }
                 OutlinedButton(onClick = { showSkip = true }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Skip…", color = c.secondary) }
             }
             Spacer(Modifier.height(16.dp))
         }
     }
     if (showSkip) SkipSheet(task = task, requireReason = requireReason, onDismiss = { showSkip = false }, onConfirm = onSkip)
+    if (showMove) MoveSheet(task = task, onDismiss = { showMove = false }) { day, priority -> showMove = false; onMove(day, priority) }
 }
 
 @Composable

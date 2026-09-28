@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ object Routes {
     const val CAPTURE = "capture"
     const val CONFIRM = "confirm"
     const val HOME = "home"
+    const val ALL = "all"
     const val CALENDAR = "calendar"
     const val PROGRESS = "progress"
     const val SETTINGS = "settings"
@@ -70,7 +72,7 @@ fun KnockNav(vm: MainViewModel, onboardingDone: Boolean, pendingRoute: MutableSt
     val c = LocalKnock.current
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination?.route
-    val showBar = current in setOf(Routes.HOME, Routes.CALENDAR, Routes.PROGRESS, Routes.SETTINGS)
+    val showBar = current in setOf(Routes.HOME, Routes.ALL, Routes.CALENDAR, Routes.PROGRESS, Routes.SETTINGS)
 
     LaunchedEffect(pendingRoute.value) {
         val r = pendingRoute.value ?: return@LaunchedEffect
@@ -84,6 +86,7 @@ fun KnockNav(vm: MainViewModel, onboardingDone: Boolean, pendingRoute: MutableSt
             if (showBar) NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
                 val items = listOf(
                     Triple(Routes.HOME, "Today", Icons.Filled.Home),
+                    Triple(Routes.ALL, "All", Icons.Filled.ViewAgenda),
                     Triple(Routes.CALENDAR, "Calendar", Icons.Filled.CalendarMonth),
                     Triple(Routes.PROGRESS, "Progress", Icons.Filled.BarChart),
                     Triple(Routes.SETTINGS, "Settings", Icons.Filled.Settings)
@@ -132,6 +135,7 @@ fun KnockNav(vm: MainViewModel, onboardingDone: Boolean, pendingRoute: MutableSt
                 HomeScreen(vm, onCapture = { nav.navigate(Routes.CAPTURE) }, onConfirm = { nav.navigate(Routes.CONFIRM) },
                     onOpenTask = { nav.navigate(Routes.task(it)) }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
             }
+            composable(Routes.ALL) { AllTasksScreen(vm, onOpenTask = { nav.navigate(Routes.task(it)) }) }
             composable(Routes.CALENDAR) { CalendarScreen(vm, onOpenTask = { nav.navigate(Routes.task(it)) }) }
             composable(Routes.PROGRESS) { ProgressScreen(vm) }
             composable(Routes.SETTINGS) { SettingsScreen(vm, onPermissions = { nav.navigate(Routes.PERMISSIONS) }) }

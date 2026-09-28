@@ -60,11 +60,19 @@ class Repository(private val context: Context, val dao: TaskDao, val settings: S
         if (timeChanged) {
             t = t.copy(nextRemindAt = maxOf(t.effectiveDue(), LocalDateTime.now()), held = false, snoozeCount = 0)
             log(t.id, EventType.RESCHEDULED, "to ${t.day.friendly()} ${t.timeLabel()}")
+            // The reminder notification is ongoing, so it must be cleared explicitly or it outlives the old time.
+            NotificationHelper.cancel(context, t.id)
         }
         if (t.hasLocation && (t.locLat == null || old?.locLabel != t.locLabel)) t = geocode(t)
         if (!t.hasLocation) t = t.copy(locLat = null, locLng = null)
         dao.update(t)
         rescheduleAll()
+    }
+
+    /** Moves a task to another day, keeping its time of day, optionally changing its priority. */
+    suspend fun move(id: Long, day: LocalDate, priority: Priority? = null) {
+        val t = dao.get(id) ?: return
+        update(t.movedTo(day, priority ?: t.priority))
     }
 
     suspend fun rescheduleTo(id: Long, day: LocalDate, time: LocalTime?) {

@@ -1,7 +1,9 @@
 package app.knock.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,6 +58,7 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val perms = rememberPermState()
+    var moving by remember { mutableStateOf<Task?>(null) }
 
     val todayTasks = tasks.filter { it.day == today }
     val overdueEarlier = tasks.filter { it.day.isBefore(today) && it.state == TaskState.PENDING }
@@ -83,6 +86,16 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
             if (r == SnackbarResult.ActionPerformed) vm.undo(task.id)
         }
     }
+
+    fun move(task: Task, day: LocalDate, priority: app.knock.data.Priority) {
+        vm.move(task.id, day, priority)
+        scope.launch {
+            val r = snack.showSnackbar("Moved to ${day.friendly(today)}: ${task.title}", actionLabel = "Undo", duration = SnackbarDuration.Short)
+            if (r == SnackbarResult.ActionPerformed) vm.move(task.id, task.day, task.priority)
+        }
+    }
+
+    fun longPressFor(task: Task): (() -> Unit)? = if (task.state == TaskState.PENDING) ({ moving = task }) else null
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -147,7 +160,7 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
                         primary = "Fix" to onOpenSettings, secondary = null
                     )
                     if (overdueEarlier.isNotEmpty()) Banner(
-                        "${overdueEarlier.size} overdue from earlier days", "Still pending. Move them to today or open each to reschedule.",
+                        "${overdueEarlier.size} overdue from earlier days", "Still pending. Move them all to today, or long-press one to move it.",
                         primary = "Move all to today" to { vm.moveAllToToday() }, secondary = null
                     )
                     Spacer(Modifier.height(8.dp))
@@ -161,7 +174,7 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
                         is RailItem.NowLine -> NowLineRow(now)
                         is RailItem.TaskRow -> TimelineRow(r.task, now, onCircle = {
                             if (r.task.state == TaskState.DONE) vm.undo(r.task.id) else if (r.task.state == TaskState.PENDING) complete(r.task)
-                        }, onOpen = { onOpenTask(r.task.id) })
+                        }, onOpen = { onOpenTask(r.task.id) }, onLongPress = longPressFor(r.task))
                     }
                 }
 
@@ -170,13 +183,16 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
                     grouped.forEach { (day, list) ->
                         item { SectionTitle(day.friendly(today).uppercase()) }
                         items(list, key = { "f${it.id}" }) { t ->
-                            TimelineRow(t, now, onCircle = { if (t.state == TaskState.PENDING) complete(t) else if (t.state == TaskState.DONE) vm.undo(t.id) }, onOpen = { onOpenTask(t.id) })
+                            TimelineRow(t, now, onCircle = { if (t.state == TaskState.PENDING) complete(t) else if (t.state == TaskState.DONE) vm.undo(t.id) },
+                                onOpen = { onOpenTask(t.id) }, onLongPress = longPressFor(t))
                         }
                     }
                 }
             }
         }
     }
+
+    moving?.let { t -> MoveSheet(t, onDismiss = { moving = null }) { day, p -> moving = null; move(t, day, p) } }
 }
 
 @Composable
@@ -204,8 +220,12 @@ private fun NowLineRow(now: LocalDateTime) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TimelineRow(task: Task, now: LocalDateTime, onCircle: () -> Unit, onOpen: () -> Unit) {
+fun TimelineRow(
+    task: Task, now: LocalDateTime, onCircle: () -> Unit, onOpen: () -> Unit,
+    onLongPress: (() -> Unit)? = null, showDay: Boolean = true
+) {
     val c = LocalKnock.current
     val status = task.status(now)
     val titleColor = when (status) {
@@ -218,11 +238,15 @@ fun TimelineRow(task: Task, now: LocalDateTime, onCircle: () -> Unit, onOpen: ()
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(56.dp)) {
             MonoText(if (task.anytime) "any" else task.dueAt!!.toLocalTime().hhmm(), color = timeColor, size = 13)
-            if (task.day != now.toLocalDate()) Text(task.day.friendly(now.toLocalDate()), color = c.overdue, fontSize = 10.sp)
+            if (showDay && task.day != now.toLocalDate()) Text(task.day.friendly(now.toLocalDate()), color = c.overdue, fontSize = 10.sp)
         }
         StatusCircle(status, onCircle)
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).knockCard(14).clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column(
+            Modifier.weight(1f).knockCard(14)
+                .combinedClickable(onClick = onOpen, onLongClickLabel = if (onLongPress != null) "Move" else null, onLongClick = onLongPress)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
             Text(
                 task.title, color = titleColor, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 textDecoration = if (status == TaskStatus.DONE || status == TaskStatus.SKIPPED) TextDecoration.LineThrough else null

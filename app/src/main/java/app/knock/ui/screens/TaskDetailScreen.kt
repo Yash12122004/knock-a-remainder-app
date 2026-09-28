@@ -51,6 +51,7 @@ fun TaskDetailScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
     var draft by remember(task.id) { mutableStateOf(task) }
     var showDelete by remember { mutableStateOf(false) }
     var showSkip by remember { mutableStateOf(false) }
+    var showMove by remember { mutableStateOf(false) }
     val dirty = draft != task
     val today = LocalDate.now()
 
@@ -73,6 +74,13 @@ fun TaskDetailScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
             }, filled = true)
             if (task.state == TaskState.PENDING) Text("reminded ${task.remindCount}× · snoozed ${if (task.snoozeDay == today) task.snoozeCount else 0}×", color = c.secondary, fontSize = 12.sp)
             if (task.skipReason != null) Text("skipped: ${task.skipReason}", color = c.secondary, fontSize = 12.sp)
+        }
+
+        if (task.state == TaskState.PENDING) {
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = { showMove = true }, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+                Text("Move to another day or change priority…", color = c.accent)
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -171,6 +179,13 @@ fun TaskDetailScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
     )
     if (showSkip) SkipSheet(task = task, requireReason = settings.requireSkipReason, onDismiss = { showSkip = false }) { reason, all ->
         showSkip = false; vm.skip(task.id, reason, all)
+    }
+    // Moves the draft, not the saved task, so any unsaved edits go in with the move instead of being overwritten by it.
+    if (showMove) MoveSheet(task = draft, onDismiss = { showMove = false }) { day, priority ->
+        showMove = false
+        val moved = draft.movedTo(day, priority)
+        draft = moved
+        vm.update(moved)
     }
 }
 
