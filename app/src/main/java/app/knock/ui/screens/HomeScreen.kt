@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,8 +38,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-enum class Range(val label: String, val days: Long) { TODAY("Today", 0), NEXT3("Next 3 days", 3), WEEK("This week", 7) }
-
 private sealed class RailItem {
     data class TaskRow(val task: Task) : RailItem()
     data object NowLine : RailItem()
@@ -53,7 +52,7 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
     var now by remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = LocalDateTime.now() } }
     val today = now.toLocalDate()
-    var range by remember { mutableStateOf(Range.TODAY) }
+    var showHistory by rememberSaveable { mutableStateOf(false) }
     var quick by remember { mutableStateOf("") }
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -64,7 +63,10 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
     val overdueEarlier = tasks.filter { it.day.isBefore(today) && it.state == TaskState.PENDING }
     val doneCount = todayTasks.count { it.state == TaskState.DONE }
     val total = todayTasks.count { it.state != TaskState.SKIPPED }
-    val future = if (range == Range.TODAY) emptyList() else tasks.filter { it.day.isAfter(today) && !it.day.isAfter(today.plusDays(range.days)) }
+    // Everything lives on this one screen: overdue and today on the rail, then every upcoming day,
+    // then finished work from earlier days, collapsed so it doesn't crowd what is still to do.
+    val future = tasks.filter { it.day.isAfter(today) }
+    val history = tasks.filter { it.day.isBefore(today) && it.state != TaskState.PENDING }.sortedByDescending { it.day }
 
     val rows = remember(todayTasks, overdueEarlier, now) {
         val list = mutableListOf<RailItem>()
@@ -140,9 +142,9 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
                         color = c.accent, trackColor = c.border
                     )
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Range.entries.forEach { r -> Pill(r.label, color = c.accent, filled = range == r) { range = r } }
+                    if (tasks.any { it.state == TaskState.PENDING }) {
+                        Text("Long-press a task to move it or change its priority.", color = c.secondary,
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp))
                     }
 
                     if (settings.forceStopWarning) Banner(
@@ -178,13 +180,29 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
                     }
                 }
 
-                if (future.isNotEmpty()) {
-                    val grouped = future.groupBy { it.day }.toSortedMap()
-                    grouped.forEach { (day, list) ->
-                        item { SectionTitle(day.friendly(today).uppercase()) }
-                        items(list, key = { "f${it.id}" }) { t ->
-                            TimelineRow(t, now, onCircle = { if (t.state == TaskState.PENDING) complete(t) else if (t.state == TaskState.DONE) vm.undo(t.id) },
-                                onOpen = { onOpenTask(t.id) }, onLongPress = longPressFor(t), showDay = false)
+                future.groupBy { it.day }.toSortedMap().forEach { (day, list) ->
+                    item(key = "hf$day") { SectionTitle(dayHeader(day, today)) }
+                    items(list, key = { "f${it.id}" }) { t ->
+                        TimelineRow(t, now, onCircle = { if (t.state == TaskState.PENDING) complete(t) else if (t.state == TaskState.DONE) vm.undo(t.id) },
+                            onOpen = { onOpenTask(t.id) }, onLongPress = longPressFor(t), showDay = false)
+                    }
+                }
+
+                if (history.isNotEmpty()) {
+                    item(key = "h-history") {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { showHistory = !showHistory }.padding(top = 18.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("EARLIER · DONE & SKIPPED (${history.size})", style = MaterialTheme.typography.labelMedium,
+                                color = c.secondary, modifier = Modifier.weight(1f))
+                            Text(if (showHistory) "Hide" else "Show", style = MaterialTheme.typography.labelMedium, color = c.accent)
+                        }
+                    }
+                    if (showHistory) history.groupBy { it.day }.forEach { (day, list) ->
+                        item(key = "hp$day") { SectionTitle(dayHeader(day, today)) }
+                        items(list, key = { "p${it.id}" }) { t ->
+                            TimelineRow(t, now, onCircle = { if (t.state == TaskState.DONE) vm.undo(t.id) }, onOpen = { onOpenTask(t.id) }, showDay = false)
                         }
                     }
                 }
@@ -194,6 +212,10 @@ fun HomeScreen(vm: MainViewModel, onCapture: () -> Unit, onConfirm: () -> Unit, 
 
     moving?.let { t -> MoveSheet(t, onDismiss = { moving = null }) { day, p -> moving = null; move(t, day, p) } }
 }
+
+/** "TOMORROW", "FRI 3 OCT" — with the year added only when it isn't this year. */
+private fun dayHeader(day: LocalDate, today: LocalDate): String =
+    (day.friendly(today) + if (day.year != today.year) " ${day.year}" else "").uppercase()
 
 @Composable
 fun Banner(title: String, body: String, primary: Pair<String, () -> Unit>, secondary: Pair<String, () -> Unit>?) {
