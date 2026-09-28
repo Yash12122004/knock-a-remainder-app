@@ -25,6 +25,21 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Every runner is fresh, so without this each build gets a new random debug key and
+      # Android refuses to install it over the previous APK. The key lives in a repo secret
+      # rather than the repo, because the repo is public.
+      - name: Install stable debug signing key
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_B64" ]; then
+            echo "::error::DEBUG_KEYSTORE_B64 secret is not set. The APK would be signed with a random key and could not update an installed copy."
+            exit 1
+          fi
+          dir="${ANDROID_USER_HOME:-$HOME/.android}"
+          mkdir -p "$dir"
+          echo "$DEBUG_KEYSTORE_B64" | base64 -d > "$dir/debug.keystore"
+
       - name: Build
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
