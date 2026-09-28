@@ -17,6 +17,14 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        // CI signs every debug build with one fixed key (see .github/workflows/build.yml) so each
+        // new APK installs over the previous one. Unset locally, where the usual debug key applies.
+        System.getenv("KNOCK_DEBUG_KEYSTORE")?.let { path ->
+            getByName("debug") { storeFile = file(path) }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
