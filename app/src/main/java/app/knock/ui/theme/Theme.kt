@@ -29,34 +29,42 @@ data class KnockColors(
     val overdue: Color,
     val done: Color,
     val warn: Color,
+    /** Bottom-sheet surface: lifted off the background in dark, plain card in light. */
+    val sheet: Color,
     val isDark: Boolean
 )
 
+// Black and white, with one red kept for overdue and destructive actions — an overdue task
+// must not look like one that is merely due. Done and warn are full contrast; the Done
+// button therefore stays the strongest control, and warnings keep their icon.
+
 val DarkKnock = KnockColors(
-    bg = Color(0xFF0B0C14),
-    card = Color(0x0BFFFFFF),
-    border = Color(0x12FFFFFF),
-    text = Color(0xFFEEF0FF),
-    secondary = Color(0xFF9A9FBD),
-    accent = Color(0xFF8B95FF),
-    accentOn = Color(0xFF0B0C14),
-    overdue = Color(0xFFFF7A90),
-    done = Color(0xFF5FE0B0),
-    warn = Color(0xFFFFC24D),
+    bg = Color(0xFF0A0A0A),
+    card = Color(0x0FFFFFFF),
+    border = Color(0x1FFFFFFF),
+    text = Color(0xFFF5F5F5),
+    secondary = Color(0xFFA3A3A3),
+    accent = Color(0xFFFFFFFF),
+    accentOn = Color(0xFF0A0A0A),
+    overdue = Color(0xFFFF6B6B),
+    done = Color(0xFFF5F5F5),
+    warn = Color(0xFFF5F5F5),
+    sheet = Color(0xFF171717),
     isDark = true
 )
 
 val LightKnock = KnockColors(
-    bg = Color(0xFFF4F5F9),
+    bg = Color(0xFFF5F5F5),
     card = Color(0xFFFFFFFF),
-    border = Color(0x14000000),
-    text = Color(0xFF12142A),
-    secondary = Color(0xFF5E6380),
-    accent = Color(0xFF2F5BFF),
+    border = Color(0x1A000000),
+    text = Color(0xFF0A0A0A),
+    secondary = Color(0xFF525252),
+    accent = Color(0xFF0A0A0A),
     accentOn = Color(0xFFFFFFFF),
-    overdue = Color(0xFFD9364F),
-    done = Color(0xFF15966A),
-    warn = Color(0xFFB77900),
+    overdue = Color(0xFFD32F2F),
+    done = Color(0xFF0A0A0A),
+    warn = Color(0xFF0A0A0A),
+    sheet = Color(0xFFFFFFFF),
     isDark = false
 )
 
@@ -69,16 +77,16 @@ fun KnockTheme(dark: Boolean = true, content: @Composable () -> Unit) {
     val c = if (dark) DarkKnock else LightKnock
     val scheme = if (dark) darkColorScheme(
         primary = c.accent, onPrimary = c.accentOn, background = c.bg, onBackground = c.text,
-        surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFF181A2B), onSurfaceVariant = c.secondary,
-        error = c.overdue, outline = c.border, secondaryContainer = Color(0xFF232647), onSecondaryContainer = c.text,
-        surfaceContainer = Color(0xFF14162A), surfaceContainerHigh = Color(0xFF1B1E36), surfaceContainerHighest = Color(0xFF232647),
-        surfaceContainerLow = Color(0xFF10121F), surfaceContainerLowest = c.bg
+        surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFF1C1C1C), onSurfaceVariant = c.secondary,
+        error = c.overdue, outline = c.border, secondaryContainer = Color(0xFF262626), onSecondaryContainer = c.text,
+        surfaceContainer = c.sheet, surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF262626),
+        surfaceContainerLow = Color(0xFF121212), surfaceContainerLowest = c.bg
     ) else lightColorScheme(
         primary = c.accent, onPrimary = c.accentOn, background = c.bg, onBackground = c.text,
-        surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFFE6E8F2), onSurfaceVariant = c.secondary,
-        error = c.overdue, outline = c.border, secondaryContainer = Color(0xFFDDE3FF), onSecondaryContainer = c.text,
-        surfaceContainer = Color(0xFFECEEF6), surfaceContainerHigh = Color(0xFFE4E7F1), surfaceContainerHighest = Color(0xFFDDE0EC),
-        surfaceContainerLow = Color(0xFFF7F8FC), surfaceContainerLowest = Color(0xFFFFFFFF)
+        surface = c.bg, onSurface = c.text, surfaceVariant = Color(0xFFEBEBEB), onSurfaceVariant = c.secondary,
+        error = c.overdue, outline = c.border, secondaryContainer = Color(0xFFE5E5E5), onSecondaryContainer = c.text,
+        surfaceContainer = Color(0xFFF0F0F0), surfaceContainerHigh = Color(0xFFEBEBEB), surfaceContainerHighest = Color(0xFFE5E5E5),
+        surfaceContainerLow = Color(0xFFFAFAFA), surfaceContainerLowest = Color(0xFFFFFFFF)
     )
     val typography = Typography(
         displayLarge = TextStyle(fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp, lineHeight = 42.sp),

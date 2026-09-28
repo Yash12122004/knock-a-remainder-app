@@ -60,7 +60,7 @@ fun SettingsScreen(vm: MainViewModel, onPermissions: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val p = perms.value
                 Pill("Mic", color = if (p.mic) c.done else c.secondary, filled = true) { onPermissions() }
-                Pill(if (p.loc) "Location" else "Location off", color = if (p.loc) c.done else c.warn, filled = true) { onPermissions() }
+                Pill(if (p.loc) "Location" else "Location off", color = if (p.loc) c.done else c.secondary, filled = true) { onPermissions() }
             }
             if (!perms.value.loc) Text("Location tasks fall back to their time reminder.", color = c.secondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
 

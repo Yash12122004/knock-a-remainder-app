@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +27,7 @@ fun MoveSheet(task: Task, onDismiss: () -> Unit, onMove: (LocalDate, Priority) -
     val hasTime = !task.anytime && task.dueAt != null
     val changed = day != task.day || priority != task.priority
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = if (c.isDark) Color(0xFF14162A) else c.card) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.sheet) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Text("Move \"${task.title}\"", style = MaterialTheme.typography.titleLarge, color = c.text, maxLines = 2)
             Text(

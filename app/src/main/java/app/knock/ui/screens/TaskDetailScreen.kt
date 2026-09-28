@@ -199,7 +199,7 @@ fun SkipSheet(task: Task, requireReason: Boolean, onDismiss: () -> Unit, onConfi
     var free by remember { mutableStateOf("") }
     var allFuture by remember { mutableStateOf(false) }
     val reason = listOfNotNull(chip, free.takeIf { it.isNotBlank() }).joinToString(" — ")
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = if (c.isDark) androidx.compose.ui.graphics.Color(0xFF14162A) else c.card) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.sheet) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Text("Skip \"${task.title}\"", style = MaterialTheme.typography.titleLarge, color = c.text)
             Text("Why? The reason is saved to the task's history.", color = c.secondary, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))

@@ -105,7 +105,7 @@ private fun ReminderContent(
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         Box(Modifier.align(Alignment.TopCenter).offset(y = 40.dp).size(360.dp)
-            .background(Brush.radialGradient(listOf(c.accent.copy(alpha = if (c.isDark) 0.35f else 0.2f), Color.Transparent)), CircleShape))
+            .background(Brush.radialGradient(listOf(c.accent.copy(alpha = if (c.isDark) 0.10f else 0f), Color.Transparent)), CircleShape))
         Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(48.dp))
             Text(if (task.day != today) task.day.friendly(today) else "Due", color = c.secondary, style = MaterialTheme.typography.labelMedium)

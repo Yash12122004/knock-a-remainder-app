@@ -228,12 +228,13 @@ fun TimelineRow(
 ) {
     val c = LocalKnock.current
     val status = task.status(now)
+    // Finished work recedes: without hue, loudness is emphasis. The filled check circle still marks it done.
     val titleColor = when (status) {
-        TaskStatus.DONE -> c.done; TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.text
-        TaskStatus.SKIPPED -> c.secondary; TaskStatus.UPCOMING -> c.secondary
+        TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.text
+        TaskStatus.DONE, TaskStatus.SKIPPED, TaskStatus.UPCOMING -> c.secondary
     }
     val timeColor = when (status) {
-        TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.accent; TaskStatus.DONE -> c.done; else -> c.secondary
+        TaskStatus.OVERDUE -> c.overdue; TaskStatus.DUE -> c.accent; else -> c.secondary
     }
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(56.dp)) {

@@ -35,7 +35,8 @@ fun Glow(modifier: Modifier = Modifier, size: Int = 320) {
     val c = LocalKnock.current
     Box(
         modifier.size(size.dp).background(
-            Brush.radialGradient(listOf(c.accent.copy(alpha = if (c.isDark) 0.28f else 0.16f), Color.Transparent)), CircleShape
+            // A faint spotlight on black; on white a black glow only reads as a smudge, so light mode has none.
+            Brush.radialGradient(listOf(c.accent.copy(alpha = if (c.isDark) 0.08f else 0f), Color.Transparent)), CircleShape
         )
     )
 }
