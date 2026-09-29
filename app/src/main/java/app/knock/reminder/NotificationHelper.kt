@@ -166,4 +166,6 @@ object NotificationHelper {
         nm.cancel((NEARBY_BASE + taskId).toInt())
         nm.cancel((STALE_ID + taskId * 7).toInt())
     }
+
+    fun cancelDigest(ctx: Context) = NotificationManagerCompat.from(ctx).cancel(DIGEST_ID)
 }

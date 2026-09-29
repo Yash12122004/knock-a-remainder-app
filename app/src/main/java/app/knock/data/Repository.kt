@@ -165,11 +165,20 @@ class Repository(private val context: Context, val dao: TaskDao, val settings: S
     suspend fun moveAllToToday() {
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
+        val s = settings.get()
         dao.pending().filter { it.status(now) == TaskStatus.OVERDUE || it.held }.forEach { t ->
-            val newDue = t.dueAt?.toLocalTime()?.let { today.atTime(it) }
-            dao.update(t.copy(day = today, dueAt = newDue, nextRemindAt = now.plusMinutes(1), held = false))
+            val moved = t.copy(day = today, dueAt = t.dueAt?.toLocalTime()?.let { today.atTime(it) }, held = false)
+            val due = moved.effectiveDue(today)
+            // Remind at the task's time if that is still ahead today, otherwise after its usual interval.
+            // Reminding everything one minute later fired them all at once, which re-posted this same
+            // "reminders waiting" digest, so the button looked like it did nothing.
+            val next = if (due.isAfter(now)) due else now.plusMinutes((t.intervalMin ?: s.intervalFor(t.priority)).toLong())
+            dao.update(moved.copy(nextRemindAt = next))
             log(t.id, EventType.RESCHEDULED, "moved to today")
+            NotificationHelper.cancel(context, t.id)
         }
+        // Tapping a notification's action button never dismisses it; only a tap on its body does.
+        NotificationHelper.cancelDigest(context)
         rescheduleAll()
     }
 
